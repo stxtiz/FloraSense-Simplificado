@@ -1,29 +1,35 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import * as mqtt from 'mqtt';
 import { PrismaService } from '../prisma.service.js';
+import { RulesService } from './rules.service.js';
 
 @Injectable()
 export class MqttService implements OnModuleInit, OnModuleDestroy {
   private client: mqtt.MqttClient;
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly rulesService: RulesService
+  ) {}
 
   onModuleInit() {
-    // Nos conectamos al broker MQTT (Mosquitto)
     const brokerUrl = process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883';
     this.client = mqtt.connect(brokerUrl);
 
+    this.rulesService.setMqttClient(this.client);
+
     this.client.on('connect', () => {
       console.log(`🔌 Conectado al broker MQTT en ${brokerUrl}`);
-      // Nos suscribimos a todos los mensajes de telemetría de cualquier dispositivo (+)
+      
       this.client.subscribe('iot/v1/devices/+/telemetry', (err) => {
-        if (!err) {
-          console.log('📡 Suscrito exitosamente a iot/v1/devices/+/telemetry');
-        }
+        if (!err) console.log('📡 Suscrito exitosamente a iot/v1/devices/+/telemetry');
+      });
+
+      this.client.subscribe('iot/v1/devices/+/acks', (err) => {
+        if (!err) console.log('📡 Suscrito exitosamente a iot/v1/devices/+/acks');
       });
     });
 
-    // Escuchamos los mensajes que llegan
     this.client.on('message', async (topic, message) => {
       try {
         await this.handleIncomingMessage(topic, message);
@@ -37,52 +43,57 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     this.client.end();
   }
 
-  /**
-   * Procesa los mensajes MQTT entrantes
-   */
   private async handleIncomingMessage(topic: string, message: Buffer) {
-    // Ejemplo de topic: iot/v1/devices/123e4567-e89b-12d3-a456-426614174000/telemetry
     const topicParts = topic.split('/');
-    const deviceId = topicParts[3]; // Extraemos el ID del dispositivo del topic
+    const deviceId = topicParts[3];
+    const messageType = topicParts[4]; // telemetry o acks
 
-    const payloadString = message.toString();
-    const payload = JSON.parse(payloadString);
+    const payload = JSON.parse(message.toString());
 
-    console.log(`📥 Telemetría recibida del dispositivo ${deviceId}:`, payload);
+    if (messageType === 'telemetry') {
+      await this.handleTelemetry(deviceId, payload);
+    } else if (messageType === 'acks') {
+      await this.handleAck(deviceId, payload);
+    }
+  }
 
-    // 1. Verificar si el dispositivo existe en la base de datos
-    // Usaremos findFirst porque puede que el deviceId del topic no sea un UUID válido
-    // o podríamos usar upsert para crearlo automáticamente en desarrollo.
-    // Para simplificar, asumiremos que el ID ya está o lo buscamos por deviceKey.
-    
-    // Si no existe, lo creamos "al vuelo" para facilitar el desarrollo
+  private async handleTelemetry(deviceId: string, payload: any) {
     let device = await this.prisma.device.findUnique({ where: { id: deviceId } }).catch(() => null);
     
     if (!device) {
-       // Intentamos crearlo si el deviceId es un UUID válido
        try {
          device = await this.prisma.device.create({
            data: {
              id: deviceId,
              deviceKey: `key-${deviceId}`,
              name: `Dispositivo Simulado ${deviceId.substring(0, 4)}`,
-             status: 'ONLINE'
+             status: 'ONLINE',
+             mode: 'AUTO'
            }
          });
-         console.log(`🆕 Nuevo dispositivo registrado automáticamente: ${device.id}`);
+         
+         // Generar regla por defecto
+         await this.prisma.irrigationRule.create({
+           data: {
+             deviceId: device.id,
+             enabled: true,
+             startBelowPct: 40.0,
+             stopAbovePct: 70.0,
+             maxRuntimeSeconds: 30, // 30 segundos
+             cooldownSeconds: 60, // 1 min de cooldown para probar rapido
+           }
+         });
+         
        } catch (e) {
-         console.error('El topic no contenía un UUID válido para el dispositivo');
-         return; // Salimos si no es UUID válido
+         return; 
        }
     } else {
-       // Actualizamos el estado a ONLINE y su última vez visto
        await this.prisma.device.update({
          where: { id: deviceId },
          data: { status: 'ONLINE', lastSeenAt: new Date() }
        });
     }
 
-    // 2. Guardar la telemetría en la base de datos
     await this.prisma.telemetry.create({
       data: {
         deviceId: device.id,
@@ -96,6 +107,32 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
-    console.log(`💾 Telemetría guardada en PostgreSQL para ${deviceId}`);
+    if (device.mode === 'AUTO') {
+      await this.rulesService.evaluateRules(device.id, payload.soilMoisturePct);
+    }
+  }
+
+  private async handleAck(deviceId: string, payload: any) {
+    console.log(`✅ ACK recibido de ${deviceId}:`, payload);
+    
+    // Si la bomba se acaba de apagar en este ACK, actualizamos el evento
+    if (payload.status === 'ACKNOWLEDGED' && !payload.pumpOn) {
+      const commandId = payload.commandId;
+      if (commandId) {
+        const evt = await this.prisma.irrigationEvent.findUnique({ where: { id: commandId } }).catch(() => null);
+        if (evt && !evt.stoppedAt) {
+           const duration = Math.round((Date.now() - evt.startedAt.getTime()) / 1000);
+           await this.prisma.irrigationEvent.update({
+             where: { id: commandId },
+             data: {
+               stoppedAt: new Date(),
+               durationSeconds: duration,
+               stopReason: 'AUTO_REACHED_OR_TIMEOUT'
+             }
+           });
+           console.log(`💧 Evento de riego finalizado. Duración: ${duration}s`);
+        }
+      }
+    }
   }
 }

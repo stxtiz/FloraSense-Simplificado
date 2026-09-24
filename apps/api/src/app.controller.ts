@@ -9,4 +9,9 @@ export class AppController {
   async getHello(): Promise<any> {
     return this.appService.getHello();
   }
+
+  @Get('api/devices/demo')
+  async getDemoDevice(): Promise<any> {
+    return this.appService.getDemoDevice();
+  }
 }

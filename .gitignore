@@ -1,38 +1,28 @@
-# Dependencias de Node
 node_modules/
 npm-debug.log
 yarn-error.log
-
-# Variables de Entorno (¡CRÍTICO NO SUBIR ESTO A GITHUB!)
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
-
-# Builds y compilación
 dist/
 build/
 .next/
 out/
-
-# Logs e infraestructura local
 logs/
 *.log
 docker-volumes/
 pgdata/
 mosquitto_data/
 mosquitto_log/
-
-# Archivos del Sistema Operativo
 .DS_Store
 Thumbs.db
-
-# Test coverage
 coverage/
-
-# Firmware (ESP32) 
-# (cuando compiles con PlatformIO o Arduino IDE)
 .pio/
 .vscode/
 build_output/
+*.pptx
+*.jpeg
+*.jpg
+*.png
