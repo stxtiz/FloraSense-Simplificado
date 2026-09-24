@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { HealthStrip } from '../domain/HealthStrip';
 import { SoilMoistureInstrument } from '../domain/SoilMoistureInstrument';
 import { PumpControl } from '../domain/PumpControl';
@@ -23,9 +24,15 @@ type DeviceData = {
   } | null;
 };
 
+type LastEvent = {
+  startedAt: string;
+  durationSeconds: number | null;
+};
+
 export function DashboardView() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [data, setData] = useState<DeviceData | null>(null);
+  const [lastEvent, setLastEvent] = useState<LastEvent | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Check auth on mount
@@ -46,6 +53,15 @@ export function DashboardView() {
       if (res.ok) {
         const json = await res.json();
         setData(json);
+        
+        // Also fetch the last event
+        const evtRes = await fetch(`http://localhost:3001/api/devices/${json.id}/events`);
+        if (evtRes.ok) {
+           const events = await evtRes.json();
+           if (events && events.length > 0) {
+             setLastEvent(events[0]);
+           }
+        }
       }
     } catch (e) {
       console.error(e);
@@ -63,7 +79,7 @@ export function DashboardView() {
   }, [isAuthenticated]);
 
   if (isAuthenticated === null) {
-    return <div className="min-h-screen bg-canvas" />; // Blank while checking storage
+    return <div className="min-h-screen bg-canvas" />; 
   }
 
   if (!isAuthenticated) {
@@ -105,6 +121,20 @@ export function DashboardView() {
     else soilStatus = 'OPTIMO';
   }
 
+  const isCritical = lastTelemetry && lastTelemetry.soilMoisturePct >= 100;
+
+  // Format last cycle text
+  let lastCycleText = "Nunca";
+  if (lastEvent) {
+     const dt = new Date(lastEvent.startedAt);
+     const timeStr = `${dt.getHours().toString().padStart(2, '0')}:${dt.getMinutes().toString().padStart(2, '0')}`;
+     if (lastEvent.durationSeconds) {
+       lastCycleText = `${timeStr} • ${lastEvent.durationSeconds}s`;
+     } else {
+       lastCycleText = `${timeStr} • En curso...`;
+     }
+  }
+
   return (
     <div className="flex h-screen bg-canvas overflow-hidden">
       <Sidebar />
@@ -131,7 +161,7 @@ export function DashboardView() {
             </div>
             <div className="text-right hidden md:block">
               <div className="text-3xl font-display text-ink">Hoy</div>
-              <div className="text-sm text-ink-soft">24 de Septiembre</div>
+              <div className="text-sm text-ink-soft">Riego Inteligente</div>
             </div>
           </header>
 
@@ -161,12 +191,14 @@ export function DashboardView() {
 
               <div className="border border-line rounded-[32px] p-8 bg-canvas-elevated shadow-sm">
                 <div className="flex justify-between items-center mb-8">
-                  <h2 className="font-display text-3xl text-ink">Historia del día</h2>
-                  <button className="text-xs font-bold uppercase tracking-widest text-water hover:text-water-soft transition-colors">
-                    Ver reporte
-                  </button>
+                  <h2 className="font-display text-3xl text-ink">Historial de Humedad Diario</h2>
+                  <Link href="/history">
+                    <button className="text-xs font-bold uppercase tracking-widest text-water hover:text-water-soft transition-colors">
+                      Ver reporte
+                    </button>
+                  </Link>
                 </div>
-                <HistoryChart currentMoisture={lastTelemetry?.soilMoisturePct} />
+                <HistoryChart currentMoisture={lastTelemetry?.soilMoisturePct} deviceId={data.id} />
               </div>
             </div>
 
@@ -175,21 +207,29 @@ export function DashboardView() {
               <EnvironmentalReading 
                 temp={lastTelemetry?.temperatureC || 0}
                 humidity={lastTelemetry?.airHumidityPct || 0}
-                trendText={`El ambiente se mantiene estable. Última variación registrada hace 12 min.`}
+                trendText={`El ambiente se mantiene estable. Última variación registrada hace unos instantes.`}
               />
 
               <PumpControl 
+                deviceId={data.id}
                 pumpOn={lastTelemetry?.pumpOn || false}
-                lastCycle="14:00 · 30s"
+                lastCycle={lastCycleText}
+                onRefresh={fetchDevice}
               />
 
               {/* Narrativa Diaria */}
-              <div className="border border-line rounded-[32px] p-8 bg-ink text-canvas relative overflow-hidden">
+              <div className={`border rounded-[32px] p-8 relative overflow-hidden transition-colors duration-500 ${isCritical ? 'bg-warning border-warning text-canvas' : 'bg-ink border-line text-canvas'}`}>
                 <TopographicPattern className="opacity-10 text-moss-bright" />
                 <div className="relative z-10">
-                  <h3 className="text-xs font-bold tracking-widest text-moss-bright uppercase mb-4">Análisis Automático</h3>
-                  <p className="font-display text-2xl leading-snug text-canvas-elevated">
-                    "El suelo se mantiene dentro del rango objetivo desde hace 4 h 32 min. No se requiere riego inmediato."
+                  <h3 className={`text-xs font-bold tracking-widest uppercase mb-4 ${isCritical ? 'text-canvas/80' : 'text-moss-bright'}`}>
+                    Análisis Automático
+                  </h3>
+                  <p className="font-display text-2xl leading-snug">
+                    {isCritical
+                      ? '"Los niveles muy altos de humedad pueden ser dañinos. Se ha forzado el apagado por seguridad."'
+                      : lastTelemetry && lastTelemetry.soilMoisturePct < 40
+                        ? '"Nivel de humedad crítico. Requiere ciclo de riego pronto."'
+                        : '"El suelo se mantiene dentro del rango objetivo. No se requiere riego inmediato."'}
                   </p>
                 </div>
               </div>

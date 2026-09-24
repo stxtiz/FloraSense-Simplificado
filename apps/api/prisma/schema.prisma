@@ -125,6 +125,7 @@ model IrrigationEvent {
   durationSeconds Int?
   origin          String    // MANUAL, AUTO_RULE
   stopReason      String?   // MANUAL, TIMEOUT, AUTO_REACHED
+  triggeredBy     String?   // Nombre de quien lo activó
 
   device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
 }

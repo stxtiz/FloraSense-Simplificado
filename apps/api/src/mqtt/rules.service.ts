@@ -48,7 +48,7 @@ export class RulesService {
     }
   }
 
-  async triggerPump(deviceId: string, durationSeconds: number, origin: string) {
+  async triggerPump(deviceId: string, durationSeconds: number, origin: string, triggeredBy: string = 'Sistema Automático') {
     if (!this.mqttClient) {
       this.logger.error('MQTT client not connected');
       return;
@@ -75,6 +75,7 @@ export class RulesService {
         deviceId: deviceId,
         commandId: commandId,
         origin: origin,
+        triggeredBy: triggeredBy
       }
     });
 
@@ -90,6 +91,37 @@ export class RulesService {
     const topic = `iot/v1/devices/${deviceId}/commands`;
     this.mqttClient.publish(topic, JSON.stringify(payload), { qos: 1 });
     
-    this.logger.log(`Comando enviado al topic ${topic}`);
+    this.logger.log(`Comando ON enviado al topic ${topic}`);
+  }
+
+  async stopPump(deviceId: string, origin: string) {
+    if (!this.mqttClient) {
+      this.logger.error('MQTT client not connected');
+      return;
+    }
+
+    const commandId = uuidv4();
+
+    await this.prisma.pumpCommand.create({
+      data: {
+        id: commandId,
+        deviceId: deviceId,
+        origin: origin,
+        action: 'OFF',
+        status: 'SENT',
+      }
+    });
+
+    const payload = {
+      version: 1,
+      commandId: commandId,
+      action: 'OFF',
+      issuedAt: new Date().toISOString()
+    };
+
+    const topic = `iot/v1/devices/${deviceId}/commands`;
+    this.mqttClient.publish(topic, JSON.stringify(payload), { qos: 1 });
+    
+    this.logger.log(`Comando OFF enviado al topic ${topic}`);
   }
 }

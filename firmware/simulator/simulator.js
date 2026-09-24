@@ -6,7 +6,7 @@ const TOPIC_TELEMETRY = `iot/v1/devices/${DEVICE_ID}/telemetry`;
 const TOPIC_COMMANDS = `iot/v1/devices/${DEVICE_ID}/commands`;
 const TOPIC_ACKS = `iot/v1/devices/${DEVICE_ID}/acks`;
 
-console.log('🌱 Iniciando Simulador IoT (ESP32 Virtual)...');
+console.log('Iniciando Simulador IoT (ESP32 Virtual)...');
 console.log(`Conectando al broker en ${BROKER_URL}`);
 
 const client = mqtt.connect(BROKER_URL);
@@ -15,12 +15,13 @@ let isPumpOn = false;
 let pumpTimeout = null;
 let currentMoisture = 35.0; // Empezamos un poco secos para que se active
 let currentTemp = 24.5;
+let irrigationInterval = null;
 
 client.on('connect', () => {
-  console.log('✅ Conectado exitosamente al Broker MQTT');
+  console.log('Conectado exitosamente al Broker MQTT');
   
   client.subscribe(TOPIC_COMMANDS, (err) => {
-    if (!err) console.log(`📡 Suscrito a comandos: ${TOPIC_COMMANDS}`);
+    if (!err) console.log(`Suscrito a comandos: ${TOPIC_COMMANDS}`);
   });
   
   sendTelemetry();
@@ -38,37 +39,50 @@ client.on('message', (topic, message) => {
   if (topic === TOPIC_COMMANDS) {
     try {
       const payload = JSON.parse(message.toString());
-      console.log(`\n📥 Comando recibido:`, payload);
+      console.log(`\nComando recibido:`, payload);
       
       if (payload.action === 'ON') {
         if (!isPumpOn) {
           isPumpOn = true;
-          console.log('💧 BOMBA ENCENDIDA');
+          console.log('[BOMBA ENCENDIDA]');
           sendAck(payload.commandId, 'ACKNOWLEDGED');
+          sendTelemetry(); // Send immediate status change
           
-          // Simular que el suelo se humedece rápidamente mientras riega
-          const irrigationInterval = setInterval(() => {
-            if (currentMoisture < 95) currentMoisture += 5.0;
+          const stopPump = (reason) => {
+             if (irrigationInterval) clearInterval(irrigationInterval);
+             irrigationInterval = null;
+             isPumpOn = false;
+             if (pumpTimeout) clearTimeout(pumpTimeout);
+             pumpTimeout = null;
+             console.log(`[BOMBA APAGADA] ${reason}`);
+             sendTelemetry();
+          };
+
+          irrigationInterval = setInterval(() => {
+            currentMoisture += 5.0;
+            if (currentMoisture >= 100) {
+              currentMoisture = 100;
+              stopPump('Niveles de humedad al 100%. Apagado preventivo de seguridad.');
+            }
           }, 2000);
           
           const maxDuration = (payload.maxDurationSeconds || 10) * 1000;
           
           if (pumpTimeout) clearTimeout(pumpTimeout);
           pumpTimeout = setTimeout(() => {
-            clearInterval(irrigationInterval);
-            isPumpOn = false;
-            console.log('🛑 BOMBA APAGADA (Timeout de seguridad/finalización)');
-            // Enviar un mensaje de estado final
-            sendTelemetry();
+            stopPump('Timeout de seguridad');
           }, maxDuration);
         }
       } else if (payload.action === 'OFF') {
         if (isPumpOn) {
+          if (irrigationInterval) clearInterval(irrigationInterval);
+          irrigationInterval = null;
           isPumpOn = false;
           if (pumpTimeout) clearTimeout(pumpTimeout);
-          console.log('🛑 BOMBA APAGADA (Comando manual)');
+          pumpTimeout = null;
+          console.log('[BOMBA APAGADA] Comando manual');
           sendAck(payload.commandId, 'ACKNOWLEDGED');
-          sendTelemetry();
+          sendTelemetry(); // Send immediate status change
         }
       }
     } catch (e) {
@@ -89,7 +103,6 @@ function sendAck(commandId, status) {
 }
 
 function sendTelemetry() {
-  // Generar ligera variación en temp
   currentTemp += (Math.random() * 0.4 - 0.2);
 
   const payload = {
@@ -98,13 +111,13 @@ function sendTelemetry() {
     timestamp: new Date().toISOString(),
     temperatureC: parseFloat(currentTemp.toFixed(1)),
     airHumidityPct: 50.0,
-    soilMoistureRaw: Math.floor(1023 - (currentMoisture * 10.23)), // Simulamos ADC invertido
+    soilMoistureRaw: Math.floor(1023 - (currentMoisture * 10.23)), 
     soilMoisturePct: parseFloat(currentMoisture.toFixed(1)),
     pumpOn: isPumpOn,
     rssi: -50 - Math.floor(Math.random() * 5)
   };
 
-  console.log(`📤 Enviando telemetría... Temp: ${payload.temperatureC}°C, Suelo: ${payload.soilMoisturePct}%, Bomba: ${isPumpOn ? 'ON' : 'OFF'}`);
+  console.log(`Enviando telemetria... Temp: ${payload.temperatureC}C, Suelo: ${payload.soilMoisturePct}%, Bomba: ${isPumpOn ? 'ON' : 'OFF'}`);
   
   client.publish(TOPIC_TELEMETRY, JSON.stringify(payload), { qos: 1 });
 }

@@ -107,6 +107,24 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       }
     });
 
+    if (!payload.pumpOn) {
+      // Si la bomba reporta estar apagada, cerrar cualquier evento de riego abierto
+      const openEvents = await this.prisma.irrigationEvent.findMany({
+        where: { deviceId: device.id, stoppedAt: null }
+      });
+      for (const evt of openEvents) {
+        const duration = Math.round((Date.now() - evt.startedAt.getTime()) / 1000);
+        await this.prisma.irrigationEvent.update({
+          where: { id: evt.id },
+          data: {
+            stoppedAt: new Date(),
+            durationSeconds: duration,
+            stopReason: 'TELEMETRY_REPORTED_OFF'
+          }
+        });
+      }
+    }
+
     if (device.mode === 'AUTO') {
       await this.rulesService.evaluateRules(device.id, payload.soilMoisturePct);
     }

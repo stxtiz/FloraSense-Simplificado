@@ -1,73 +1,123 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
-const mockData = [
-  { time: '06:00', moisture: 42, temp: 18 },
-  { time: '08:00', moisture: 38, temp: 22 },
-  { time: '10:00', moisture: 35, temp: 26 },
-  { time: '12:00', moisture: 32, temp: 30 },
-  { time: '14:00', moisture: 68, temp: 31 }, // Riego
-  { time: '16:00', moisture: 62, temp: 29 },
-  { time: '18:00', moisture: 58, temp: 25 },
-  { time: '20:00', moisture: 55, temp: 21 },
-];
+type TelemetryPoint = {
+  recordedAt: string;
+  soilMoisturePct: number;
+  temperatureC: number;
+};
 
-export function HistoryChart({ currentMoisture }: { currentMoisture?: number }) {
-  // Insertar el valor actual al final si existe
-  const data = [...mockData];
-  if (currentMoisture !== undefined) {
-    data.push({ time: 'AHORA', moisture: currentMoisture, temp: 24 });
-  }
+export function HistoryChart({ currentMoisture, deviceId }: { currentMoisture?: number; deviceId?: string }) {
+  const [data, setData] = useState<{ time: string; Humedad: number; temp: number }[]>([]);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!deviceId) return;
+    
+    let isMounted = true;
+    
+    const fetchTelemetry = async () => {
+      try {
+        const res = await fetch(`http://localhost:3001/api/devices/${deviceId}/telemetry`);
+        if (res.ok) {
+          const telemetryList: TelemetryPoint[] = await res.json();
+          if (telemetryList.length === 0) return;
+          
+          const lastPoints = telemetryList.slice(-30); // Ultimos 30 puntos
+          
+          const formattedData = lastPoints.map(t => {
+            const date = new Date(t.recordedAt);
+            return {
+              time: `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`,
+              Humedad: t.soilMoisturePct,
+              temp: t.temperatureC
+            };
+          });
+          
+          if (currentMoisture !== undefined) {
+             formattedData.push({ time: 'AHORA', Humedad: currentMoisture, temp: 24 });
+          }
+
+          if (isMounted) {
+            setData(formattedData);
+            setError(false);
+          }
+        } else {
+          setError(true);
+        }
+      } catch (e) {
+        console.error('Error fetching telemetry:', e);
+        setError(true);
+      }
+    };
+
+    fetchTelemetry();
+    const interval = setInterval(fetchTelemetry, 5000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [deviceId, currentMoisture]);
 
   return (
     <div className="w-full h-[280px]">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-          <defs>
-            <linearGradient id="colorMoisture" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="var(--color-water)" stopOpacity={0.3}/>
-              <stop offset="95%" stopColor="var(--color-water)" stopOpacity={0}/>
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-line)" />
-          <XAxis 
-            dataKey="time" 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: 'var(--color-ink-soft)', fontSize: 12, fontFamily: 'var(--font-plex-mono)' }} 
-            dy={10}
-          />
-          <YAxis 
-            axisLine={false} 
-            tickLine={false} 
-            tick={{ fill: 'var(--color-ink-soft)', fontSize: 12, fontFamily: 'var(--font-plex-mono)' }}
-            domain={[0, 100]}
-          />
-          <Tooltip 
-            contentStyle={{ 
-              backgroundColor: 'var(--color-ink)', 
-              borderColor: 'transparent',
-              borderRadius: '8px',
-              color: 'var(--color-canvas)' 
-            }}
-            itemStyle={{ color: 'var(--color-canvas)', fontFamily: 'var(--font-plex-mono)' }}
-            labelStyle={{ fontFamily: 'var(--font-manrope)', color: 'var(--color-canvas-muted)', marginBottom: '4px' }}
-          />
-          <ReferenceLine y={40} stroke="var(--color-warning)" strokeDasharray="4 4" opacity={0.5} />
-          <ReferenceLine y={70} stroke="var(--color-water-soft)" strokeDasharray="4 4" opacity={0.5} />
-          <Area 
-            type="monotone" 
-            dataKey="moisture" 
-            stroke="var(--color-water)" 
-            strokeWidth={3}
-            fillOpacity={1} 
-            fill="url(#colorMoisture)" 
-            animationDuration={1500}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
+      {error && data.length === 0 ? (
+        <div className="w-full h-full flex flex-col items-center justify-center text-warning">
+          <span>Error de conexión al cargar la gráfica.</span>
+        </div>
+      ) : data.length === 0 ? (
+        <div className="w-full h-full flex items-center justify-center text-ink-soft animate-pulse">
+          Esperando datos reales de telemetría...
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorMoisture" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="var(--color-water)" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="var(--color-water)" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-line)" />
+            <XAxis 
+              dataKey="time" 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: 'var(--color-ink-soft)', fontSize: 12, fontFamily: 'var(--font-plex-mono)' }} 
+              dy={10}
+            />
+            <YAxis 
+              axisLine={false} 
+              tickLine={false} 
+              tick={{ fill: 'var(--color-ink-soft)', fontSize: 12, fontFamily: 'var(--font-plex-mono)' }}
+              domain={[0, 100]}
+            />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: 'var(--color-ink)', 
+                borderColor: 'transparent',
+                borderRadius: '8px',
+                color: 'var(--color-canvas)' 
+              }}
+              itemStyle={{ color: 'var(--color-canvas)', fontFamily: 'var(--font-plex-mono)' }}
+              labelStyle={{ fontFamily: 'var(--font-manrope)', color: 'var(--color-canvas-muted)', marginBottom: '4px' }}
+            />
+            <ReferenceLine y={40} stroke="var(--color-warning)" strokeDasharray="4 4" opacity={0.5} />
+            <ReferenceLine y={70} stroke="var(--color-water-soft)" strokeDasharray="4 4" opacity={0.5} />
+            <Area 
+              type="monotone" 
+              dataKey="Humedad" 
+              stroke="var(--color-water)" 
+              strokeWidth={3}
+              fillOpacity={1} 
+              fill="url(#colorMoisture)" 
+              animationDuration={500}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
