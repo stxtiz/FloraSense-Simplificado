@@ -1,4 +1,6 @@
 "use client";
+import { apiFetch } from '../../lib/api';
+
 
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from './Sidebar';
@@ -38,12 +40,12 @@ export function RulesView() {
 
   const fetchRule = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/devices/demo');
+      const res = await apiFetch('/api/devices/demo');
       if (res.ok) {
         const json = await res.json();
         const deviceId = json.id;
         
-        const ruleRes = await fetch(`http://localhost:3001/api/devices/${deviceId}/rules`);
+        const ruleRes = await apiFetch(`/api/devices/${deviceId}/rules`);
         if (ruleRes.ok) {
           const ruleJson = await ruleRes.json();
           setRule(ruleJson);
@@ -70,11 +72,11 @@ export function RulesView() {
     if (!rule) return;
     setSaving(true);
     try {
-      const res = await fetch('http://localhost:3001/api/devices/demo');
+      const res = await apiFetch('/api/devices/demo');
       const json = await res.json();
       const deviceId = json.id;
 
-      await fetch(`http://localhost:3001/api/devices/${deviceId}/rules/${rule.id}`, {
+      await apiFetch(`/api/devices/${deviceId}/rules/${rule.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

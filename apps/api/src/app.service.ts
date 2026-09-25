@@ -18,6 +18,30 @@ export class AppService {
     };
   }
 
+  async getAllDevices() {
+    return this.prisma.device.findMany({
+      orderBy: { lastSeenAt: 'desc' }
+    });
+  }
+
+  async createDevice(name: string) {
+    const id = require('uuid').v4();
+    return this.prisma.device.create({
+      data: {
+        id,
+        deviceKey: `key-${id}`,
+        name: name || 'Nuevo Dispositivo ESP32',
+        status: 'OFFLINE'
+      }
+    });
+  }
+
+  async getMqttStatus() {
+    return {
+      connected: this.rulesService.getMqttStatus()
+    };
+  }
+
   async getDemoDevice(): Promise<any> {
     const device = await this.prisma.device.findFirst({
       orderBy: { lastSeenAt: 'desc' }

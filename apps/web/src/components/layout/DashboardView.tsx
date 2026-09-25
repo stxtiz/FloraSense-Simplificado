@@ -1,4 +1,6 @@
 "use client";
+import { apiFetch } from '../../lib/api';
+
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -49,13 +51,13 @@ export function DashboardView() {
   const fetchDevice = async () => {
     if (!isAuthenticated) return;
     try {
-      const res = await fetch('http://localhost:3001/api/devices/demo');
+      const res = await apiFetch('/api/devices/demo');
       if (res.ok) {
         const json = await res.json();
         setData(json);
         
         // Also fetch the last event
-        const evtRes = await fetch(`http://localhost:3001/api/devices/${json.id}/events`);
+        const evtRes = await apiFetch(`/api/devices/${json.id}/events`);
         if (evtRes.ok) {
            const events = await evtRes.json();
            if (events && events.length > 0) {

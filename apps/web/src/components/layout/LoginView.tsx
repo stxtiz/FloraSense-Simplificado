@@ -8,9 +8,34 @@ export function LoginView({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [errorMsg, setErrorMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin();
+    setErrorMsg('');
+    setLoading(true);
+
+    try {
+      const res = await fetch('http://localhost:3001/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+
+      if (!res.ok) {
+        throw new Error('Credenciales inválidas');
+      }
+
+      const data = await res.json();
+      localStorage.setItem('fs_jwt_token', data.access_token);
+      localStorage.setItem('fs_auth_token', 'true');
+      onLogin();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Error al iniciar sesión');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,6 +82,12 @@ export function LoginView({ onLogin }: { onLogin: () => void }) {
           <h2 className="font-display text-4xl text-ink mb-2">Acceso al sistema</h2>
           <p className="text-ink-soft mb-12">Ingresa tus credenciales para continuar.</p>
 
+          {errorMsg && (
+            <div className="bg-warning/10 border border-warning text-warning px-4 py-3 rounded-lg mb-6 text-sm font-medium">
+              {errorMsg}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-xs font-bold tracking-widest uppercase text-ink-soft mb-2">
@@ -91,9 +122,12 @@ export function LoginView({ onLogin }: { onLogin: () => void }) {
 
             <button 
               type="submit" 
-              className="w-full mt-8 bg-ink text-canvas py-4 px-6 flex items-center justify-between hover:bg-ink-soft transition-colors group"
+              disabled={loading}
+              className="w-full mt-8 bg-ink text-canvas py-4 px-6 flex items-center justify-between hover:bg-ink-soft transition-colors group disabled:opacity-50"
             >
-              <span className="font-semibold tracking-wide uppercase text-sm">Ingresar al panel</span>
+              <span className="font-semibold tracking-wide uppercase text-sm">
+                {loading ? 'Verificando...' : 'Ingresar al panel'}
+              </span>
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </button>
           </form>

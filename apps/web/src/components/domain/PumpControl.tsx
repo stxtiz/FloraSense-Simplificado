@@ -1,4 +1,6 @@
 "use client";
+import { apiFetch } from '../../lib/api';
+
 
 import React, { useState } from 'react';
 import { Droplets, Clock, Power, Loader2 } from 'lucide-react';
@@ -10,7 +12,7 @@ export function PumpControl({ deviceId, pumpOn, lastCycle, onRefresh }: { device
     const action = pumpOn ? 'off' : 'on';
     setLoading(true);
     try {
-      await fetch(`http://localhost:3001/api/devices/${deviceId}/pump/${action}`, {
+      await apiFetch(`/api/devices/${deviceId}/pump/${action}`, {
         method: 'POST',
       });
       // Esperamos medio segundo para que el simulador mande la telemetría nueva

@@ -1,4 +1,4 @@
-version: '3.8'
+﻿version: '3.8'
 
 services:
   postgres:
@@ -32,10 +32,11 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    # Evita que se cierre si no hay package.json aún y nos permite ejecutar comandos
+    # Evita que se cierre si no hay package.json aÃºn y nos permite ejecutar comandos
     command: sh -c "if [ -f apps/api/package.json ]; then npm run start:dev -w apps/api; else sleep infinity; fi"
     ports:
       - "3001:3001"
+      - "5555:5555"
     depends_on:
       - postgres
       - mosquitto

@@ -63,9 +63,18 @@ export function Sidebar() {
           <LogOut className="w-5 h-5" />
         </button>
         
-        <div className="w-12 h-12 rounded-full border border-line flex items-center justify-center text-ink-soft hover:bg-line transition-colors cursor-pointer" title="Mi perfil">
-          <Sprout className="w-5 h-5" />
-        </div>
+        <Link href="/profile">
+          <div 
+            className={`w-12 h-12 rounded-full border flex items-center justify-center transition-colors cursor-pointer ${
+              pathname === '/profile' 
+                ? 'border-moss text-moss bg-moss/10' 
+                : 'border-line text-ink-soft hover:bg-line'
+            }`} 
+            title="Mi perfil"
+          >
+            <Sprout className="w-5 h-5" />
+          </div>
+        </Link>
       </div>
     </aside>
   );

@@ -1,13 +1,30 @@
-import { Controller, Get, Post, Put, Param, Body, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, BadRequestException, UseGuards } from '@nestjs/common';
 import { AppService } from './app.service.js';
+import { JwtAuthGuard } from './auth/jwt-auth.guard.js';
 
 @Controller()
+@UseGuards(JwtAuthGuard)
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
   @Get()
   async getHello(): Promise<any> {
     return this.appService.getHello();
+  }
+
+  @Get('api/devices')
+  async getAllDevices() {
+    return this.appService.getAllDevices();
+  }
+
+  @Post('api/devices')
+  async createDevice(@Body('name') name: string) {
+    return this.appService.createDevice(name);
+  }
+
+  @Get('api/system/mqtt-status')
+  async getMqttStatus() {
+    return this.appService.getMqttStatus();
   }
 
   @Get('api/devices/demo')

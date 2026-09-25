@@ -1,4 +1,6 @@
 "use client";
+import { apiFetch } from '../../lib/api';
+
 
 import React, { useEffect, useState } from 'react';
 import { Sidebar } from './Sidebar';
@@ -28,12 +30,12 @@ export function HistoryView() {
 
   const fetchEvents = async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/devices/demo');
+      const res = await apiFetch('/api/devices/demo');
       if (res.ok) {
         const json = await res.json();
         const deviceId = json.id;
         
-        const eventsRes = await fetch(`http://localhost:3001/api/devices/${deviceId}/events`);
+        const eventsRes = await apiFetch(`/api/devices/${deviceId}/events`);
         if (eventsRes.ok) {
           const eventsJson = await eventsRes.json();
           setEvents(eventsJson);

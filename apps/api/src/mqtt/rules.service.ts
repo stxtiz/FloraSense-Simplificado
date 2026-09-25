@@ -14,6 +14,10 @@ export class RulesService {
     this.mqttClient = client;
   }
 
+  getMqttStatus() {
+    return this.mqttClient ? this.mqttClient.connected : false;
+  }
+
   async evaluateRules(deviceId: string, currentMoisturePct: number) {
     if (currentMoisturePct === null || currentMoisturePct === undefined) return;
 

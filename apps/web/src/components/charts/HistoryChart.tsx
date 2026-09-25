@@ -1,4 +1,6 @@
 "use client";
+import { apiFetch } from '../../lib/api';
+
 
 import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
@@ -20,7 +22,7 @@ export function HistoryChart({ currentMoisture, deviceId }: { currentMoisture?: 
     
     const fetchTelemetry = async () => {
       try {
-        const res = await fetch(`http://localhost:3001/api/devices/${deviceId}/telemetry`);
+        const res = await apiFetch(`/api/devices/${deviceId}/telemetry`);
         if (res.ok) {
           const telemetryList: TelemetryPoint[] = await res.json();
           if (telemetryList.length === 0) return;
