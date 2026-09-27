@@ -7,10 +7,12 @@ import Link from 'next/link';
 import { HealthStrip } from '../domain/HealthStrip';
 import { SoilMoistureInstrument } from '../domain/SoilMoistureInstrument';
 import { PumpControl } from '../domain/PumpControl';
+import { FanControl } from '../domain/FanControl';
 import { EnvironmentalReading } from '../domain/EnvironmentalReading';
 import { Sidebar } from './Sidebar';
 import { TopographicPattern } from '../ui/TopographicPattern';
 import { HistoryChart } from '../charts/HistoryChart';
+import { AirHistoryChart } from '../charts/AirHistoryChart';
 import { LoginView } from './LoginView';
 
 type DeviceData = {
@@ -51,7 +53,7 @@ export function DashboardView() {
   const fetchDevice = async () => {
     if (!isAuthenticated) return;
     try {
-      const res = await apiFetch('/api/devices/demo');
+      const res = await apiFetch('/api/devices/demo?_t=' + Date.now());
       if (res.ok) {
         const json = await res.json();
         setData(json);
@@ -75,7 +77,7 @@ export function DashboardView() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchDevice();
-      const interval = setInterval(fetchDevice, 5000);
+      const interval = setInterval(fetchDevice, 2000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
@@ -167,13 +169,12 @@ export function DashboardView() {
             </div>
           </header>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-            {/* Columna Izquierda: Humedad y Gráfica */}
-            <div className="col-span-1 lg:col-span-8 flex flex-col gap-8">
-              
-              <div className="border border-line rounded-[32px] p-8 lg:p-12 bg-canvas-elevated shadow-sm relative overflow-hidden">
+                              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-8">
+            {/* --- FILA 1: SUELO Y RIEGO --- */}
+            <div className="col-span-1 lg:col-span-8 flex flex-col">
+              <div className="border border-line rounded-[32px] p-8 lg:p-12 bg-canvas-elevated shadow-sm relative overflow-hidden h-full flex flex-col">
                 <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-moss/5 to-transparent pointer-events-none" />
-                <div className="relative z-10 flex justify-between items-start mb-16">
+                <div className="relative z-10 flex justify-between items-start mb-12">
                   <h2 className="font-display text-4xl text-ink">Estado del suelo</h2>
                   <div className="text-right">
                     <div className="text-xs text-ink-soft uppercase tracking-widest font-bold mb-1">Tendencia</div>
@@ -181,37 +182,37 @@ export function DashboardView() {
                   </div>
                 </div>
                 
-                {lastTelemetry ? (
-                  <SoilMoistureInstrument 
-                    valuePct={lastTelemetry.soilMoisturePct} 
-                    status={soilStatus} 
-                  />
-                ) : (
-                  <div className="py-8 text-center text-ink-soft">Esperando lectura...</div>
-                )}
-              </div>
-
-              <div className="border border-line rounded-[32px] p-8 bg-canvas-elevated shadow-sm">
-                <div className="flex justify-between items-center mb-8">
-                  <h2 className="font-display text-3xl text-ink">Historial de Humedad Diario</h2>
-                  <Link href="/history">
-                    <button className="text-xs font-bold uppercase tracking-widest text-water hover:text-water-soft transition-colors">
-                      Ver reporte
-                    </button>
-                  </Link>
+                <div className="mb-12 relative z-10">
+                  {lastTelemetry ? (
+                    <div className="w-full">
+                      <SoilMoistureInstrument 
+                        valuePct={lastTelemetry.soilMoisturePct} 
+                        status={soilStatus} 
+                      />
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-ink-soft">Esperando lectura...</div>
+                  )}
                 </div>
-                <HistoryChart currentMoisture={lastTelemetry?.soilMoisturePct} deviceId={data.id} />
+
+                {/* Gráfica incrustada */}
+                <div className="flex-grow min-h-[200px] relative z-10 flex flex-col">
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-ink-soft">Historial de Humedad</h3>
+                    <Link href="/history">
+                      <button className="text-xs font-bold uppercase tracking-widest text-water hover:text-water-soft transition-colors">
+                        Ver reporte
+                      </button>
+                    </Link>
+                  </div>
+                  <div className="flex-grow">
+                    <HistoryChart currentMoisture={lastTelemetry?.soilMoisturePct} deviceId={data.id} />
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Columna Derecha: Ambiente y Bomba */}
             <div className="col-span-1 lg:col-span-4 flex flex-col gap-8">
-              <EnvironmentalReading 
-                temp={lastTelemetry?.temperatureC || 0}
-                humidity={lastTelemetry?.airHumidityPct || 0}
-                trendText={`El ambiente se mantiene estable. Última variación registrada hace unos instantes.`}
-              />
-
               <PumpControl 
                 deviceId={data.id}
                 pumpOn={lastTelemetry?.pumpOn || false}
@@ -219,8 +220,7 @@ export function DashboardView() {
                 onRefresh={fetchDevice}
               />
 
-              {/* Narrativa Diaria */}
-              <div className={`border rounded-[32px] p-8 relative overflow-hidden transition-colors duration-500 ${isCritical ? 'bg-warning border-warning text-canvas' : 'bg-ink border-line text-canvas'}`}>
+              <div className={`border rounded-[32px] p-8 relative overflow-hidden transition-colors duration-500 flex-grow ${isCritical ? 'bg-warning border-warning text-canvas' : 'bg-ink border-line text-canvas'}`}>
                 <TopographicPattern className="opacity-10 text-moss-bright" />
                 <div className="relative z-10">
                   <h3 className={`text-xs font-bold tracking-widest uppercase mb-4 ${isCritical ? 'text-canvas/80' : 'text-moss-bright'}`}>
@@ -237,7 +237,67 @@ export function DashboardView() {
               </div>
             </div>
           </div>
-        </main>
+
+                    {/* --- FILA 2: CLIMA Y VENTILACION --- */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="col-span-1 lg:col-span-8 flex flex-col">
+              <div className="border border-line rounded-[32px] p-8 bg-canvas-elevated shadow-sm h-full flex flex-col">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-display text-3xl text-ink">Historial de Humedad de Aire</h3>
+                  <Link href="/history">
+                    <button className="text-xs font-bold uppercase tracking-widest text-water hover:text-water-soft transition-colors">
+                      Ver reporte
+                    </button>
+                  </Link>
+                </div>
+                <div className="flex-grow min-h-[300px]">
+                  <AirHistoryChart currentHumidity={lastTelemetry?.airHumidityPct} deviceId={data.id} />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-span-1 lg:col-span-4 flex flex-col gap-8">
+              <EnvironmentalReading 
+                temp={lastTelemetry?.temperatureC || 0}
+                humidity={lastTelemetry?.airHumidityPct || 0}
+                trendText={`El ambiente se mantiene estable. Última variación registrada hace unos instantes.`}
+              />
+
+              <FanControl 
+                deviceId={data.id}
+                fanOn={lastTelemetry?.fanOn || false}
+                lastCycle="Nunca"
+                onRefresh={fetchDevice}
+              />
+
+              <div className={`border rounded-[32px] p-8 relative overflow-hidden transition-colors duration-500 flex-grow ${
+                (lastTelemetry && lastTelemetry.temperatureC > 28) 
+                  ? 'bg-warning border-warning text-canvas' 
+                  : (lastTelemetry && lastTelemetry.temperatureC < 15)
+                    ? 'bg-water border-water text-canvas'
+                    : 'bg-ink border-line text-canvas'
+              }`}>
+                <TopographicPattern className="opacity-10 text-moss-bright" />
+                <div className="relative z-10">
+                  <h3 className={`text-xs font-bold tracking-widest uppercase mb-4 ${
+                    (lastTelemetry && (lastTelemetry.temperatureC > 28 || lastTelemetry.temperatureC < 15)) 
+                      ? 'text-canvas/80' 
+                      : 'text-moss-bright'
+                  }`}>
+                    Análisis Climático
+                  </h3>
+                  <p className="font-display text-2xl leading-snug">
+                    {lastTelemetry && lastTelemetry.temperatureC > 28
+                      ? '"Temperatura elevada. Se recomienda encender la extracción para disipar el calor."'
+                      : lastTelemetry && lastTelemetry.temperatureC < 15
+                        ? '"Temperatura baja. El metabolismo y desarrollo de la planta podría ralentizarse."'
+                        : '"Clima en rango óptimo para el desarrollo vegetativo. No se requiere acción."'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          </main>
       </div>
     </div>
   );

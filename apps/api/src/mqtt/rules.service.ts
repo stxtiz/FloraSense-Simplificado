@@ -52,6 +52,29 @@ export class RulesService {
     }
   }
 
+  
+  async triggerFan(deviceId: string, action: string, origin: string, triggeredBy: string = 'Admin') {
+    if (!this.mqttClient) return;
+    const { v4: uuidv4 } = require('uuid');
+    const commandId = uuidv4();
+    
+    // Hack: guardamos el evento de ventilador en la tabla de riego para que aparezca en el historial
+    await this.prisma.irrigationEvent.create({
+      data: {
+        id: commandId,
+        deviceId,
+        origin,
+        triggeredBy: triggeredBy + ' (Ventilador)',
+        startedAt: new Date(),
+        stoppedAt: action === 'OFF' ? new Date() : null,
+        stopReason: action === 'OFF' ? 'MANUAL' : null
+      }
+    });
+    
+    const topic = `iot/v1/devices/${deviceId}/commands`;
+    this.mqttClient.publish(topic, JSON.stringify({ commandId, action: action.toLowerCase(), target: 'fan' }));
+  }
+
   async triggerPump(deviceId: string, durationSeconds: number, origin: string, triggeredBy: string = 'Sistema Automático') {
     if (!this.mqttClient) {
       this.logger.error('MQTT client not connected');

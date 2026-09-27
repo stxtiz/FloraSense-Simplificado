@@ -15,6 +15,7 @@ export function SettingsView() {
   const [isAddDeviceOpen, setIsAddDeviceOpen] = useState(false);
   const [newDeviceName, setNewDeviceName] = useState('');
   const [newDeviceKey, setNewDeviceKey] = useState<string | null>(null);
+  const [newDeviceId, setNewDeviceId] = useState<string | null>(null);
 
   // MQTT state
   const [mqttStatus, setMqttStatus] = useState<any>(null);
@@ -70,6 +71,7 @@ export function SettingsView() {
       });
       const data = await res.json();
       setNewDeviceKey(data.deviceKey);
+      setNewDeviceId(data.id);
       loadDevices();
     } catch (e) {
       console.error('Error al añadir:', e);
@@ -217,15 +219,15 @@ export function SettingsView() {
       {/* ADD DEVICE MODAL */}
       {isAddDeviceOpen && (
         <div className="fixed inset-0 bg-ink/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-canvas rounded-[32px] w-full max-w-lg p-8 relative shadow-2xl">
+          <div className="bg-canvas rounded-[32px] w-full max-w-4xl p-8 relative shadow-2xl max-h-[90vh] flex flex-col">
             <button 
-              onClick={() => { setIsAddDeviceOpen(false); setNewDeviceKey(null); setNewDeviceName(''); }}
-              className="absolute top-6 right-6 text-ink-soft hover:text-ink"
+              onClick={() => { setIsAddDeviceOpen(false); setNewDeviceKey(null); setNewDeviceId(null); setNewDeviceName(''); }}
+              className="absolute top-6 right-6 text-ink-soft hover:text-ink z-10"
             >
               <X className="w-6 h-6" />
             </button>
-            <h2 className="font-display text-3xl mb-2">Nuevo ESP32</h2>
-            <p className="text-ink-soft mb-6">Asigna un nombre para registrar un nuevo microcontrolador.</p>
+            <h2 className="font-display text-3xl mb-2">Nuevo ESP8266</h2>
+            <p className="text-ink-soft mb-6 shrink-0">Registra un nuevo microcontrolador y obtén el firmware listo para flashear.</p>
             
             {!newDeviceKey ? (
               <div>
@@ -240,18 +242,131 @@ export function SettingsView() {
                   onClick={handleAddDevice}
                   className="w-full bg-ink text-canvas py-4 rounded-xl font-bold uppercase tracking-widest text-sm hover:bg-ink-soft transition-colors"
                 >
-                  Generar Credenciales
+                  Generar Firmware
                 </button>
               </div>
             ) : (
-              <div className="bg-moss/10 border border-moss p-6 rounded-xl">
-                <div className="flex items-center gap-2 text-moss font-bold mb-4">
-                  <CheckCircle className="w-5 h-5" /> Dispositivo Registrado
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="bg-moss/10 border border-moss p-4 rounded-xl mb-4 shrink-0">
+                  <div className="flex items-center gap-2 text-moss font-bold mb-2">
+                    <CheckCircle className="w-5 h-5" /> Dispositivo Registrado Exitosamente
+                  </div>
+                  <p className="text-sm text-ink-soft">Copia este código y pégalo directamente en Arduino IDE. Ya contiene tu ID único y está configurado para la red de FloraSense.</p>
                 </div>
-                <p className="text-sm text-ink-soft mb-2">Copia esta clave secreta en el código C++ del ESP32. Solo se mostrará una vez.</p>
-                <code className="block w-full p-4 bg-canvas-elevated border border-line rounded-lg text-xs break-all select-all font-mono-data text-ink">
-                  {newDeviceKey}
-                </code>
+                
+                <div className="flex-1 overflow-auto bg-[#1e1e1e] rounded-xl p-4 text-xs font-mono-data text-gray-300 select-all border border-line shadow-inner">
+                  <pre><code>{`#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <ArduinoJson.h>
+
+// ==========================================
+// CONFIGURACIÓN DE RED Y MQTT
+// ==========================================
+const char* ssid = "TU_RED_WIFI";
+const char* password = "TU_PASSWORD_WIFI";
+
+// Reemplaza por la IP local de la computadora ejecutando Docker (ej: 192.168.1.50)
+const char* mqtt_server = "IP_DE_TU_PC_CON_DOCKER"; 
+const int mqtt_port = 1883;
+
+// Credenciales autogeneradas para este dispositivo
+const char* DEVICE_ID = "${newDeviceId}";
+const char* DEVICE_KEY = "${newDeviceKey}"; 
+
+// ==========================================
+// CONFIGURACIÓN DE HARDWARE (PINES ESP8266)
+// ==========================================
+const int SOIL_MOISTURE_PIN = A0;
+const int PUMP_PIN = 5; // D1
+
+const int DRY_VALUE = 1023;
+const int WET_VALUE = 300;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+unsigned long lastMsg = 0;
+bool isPumpOn = false;
+
+char topic_telemetry[100];
+char topic_commands[100];
+char topic_acks[100];
+
+void setup_wifi() {
+  delay(10);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) delay(500);
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String msg;
+  for (unsigned int i = 0; i < length; i++) msg += (char)payload[i];
+
+  StaticJsonDocument<256> doc;
+  if (!deserializeJson(doc, msg)) {
+    if (String(topic) == topic_commands) {
+      String action = doc["action"];
+      if (action == "on") { digitalWrite(PUMP_PIN, HIGH); isPumpOn = true; }
+      if (action == "off") { digitalWrite(PUMP_PIN, LOW); isPumpOn = false; }
+      publishTelemetry();
+    }
+  }
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    if (client.connect(DEVICE_ID)) {
+      client.subscribe(topic_commands);
+    } else {
+      delay(5000);
+    }
+  }
+}
+
+void publishTelemetry() {
+  int rawValue = analogRead(SOIL_MOISTURE_PIN);
+  int pct = constrain(map(rawValue, DRY_VALUE, WET_VALUE, 0, 100), 0, 100);
+
+  StaticJsonDocument<256> doc;
+  doc["version"] = 1;
+  doc["deviceId"] = DEVICE_ID;
+  doc["temperatureC"] = 24.5; 
+  doc["airHumidityPct"] = 50.0;
+  doc["soilMoistureRaw"] = rawValue;
+  doc["soilMoisturePct"] = (float)pct;
+  doc["pumpOn"] = isPumpOn;
+  doc["rssi"] = WiFi.RSSI();
+
+  char jsonBuffer[256];
+  serializeJson(doc, jsonBuffer);
+  client.publish(topic_telemetry, jsonBuffer);
+}
+
+void setup() {
+  pinMode(PUMP_PIN, OUTPUT);
+  digitalWrite(PUMP_PIN, LOW);
+  
+  sprintf(topic_telemetry, "iot/v1/devices/%s/telemetry", DEVICE_ID);
+  sprintf(topic_commands, "iot/v1/devices/%s/commands", DEVICE_ID);
+  sprintf(topic_acks, "iot/v1/devices/%s/acks", DEVICE_ID);
+
+  setup_wifi();
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+}
+
+void loop() {
+  if (!client.connected()) reconnect();
+  client.loop();
+
+  unsigned long now = millis();
+  if (now - lastMsg > 10000) {
+    lastMsg = now;
+    publishTelemetry();
+  }
+}`}</code></pre>
+                </div>
               </div>
             )}
           </div>

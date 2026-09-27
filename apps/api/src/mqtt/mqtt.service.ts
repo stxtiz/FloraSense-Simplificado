@@ -58,6 +58,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async handleTelemetry(deviceId: string, payload: any) {
+    console.log(`[TELEMETRY] Received for ${deviceId}:`, payload);
     let device = await this.prisma.device.findUnique({ where: { id: deviceId } }).catch(() => null);
     
     if (!device) {
@@ -102,6 +103,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         soilMoistureRaw: payload.soilMoistureRaw,
         soilMoisturePct: payload.soilMoisturePct,
         pumpOn: payload.pumpOn || false,
+        fanOn: payload.fanOn || false,
         rssi: payload.rssi,
         payloadVersion: payload.version || 1,
       }

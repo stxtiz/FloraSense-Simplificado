@@ -25,7 +25,8 @@ export class AppService {
   }
 
   async createDevice(name: string) {
-    const id = require('uuid').v4();
+    const crypto = await import('crypto');
+    const id = crypto.randomUUID();
     return this.prisma.device.create({
       data: {
         id,
@@ -77,6 +78,15 @@ export class AppService {
       await this.rulesService.stopPump(deviceId, 'MANUAL');
     }
 
+    return { success: true, action, deviceId };
+  }
+
+  async sendFanCommand(deviceId: string, action: string, userName: string) {
+    const device = await this.prisma.device.findUnique({ where: { id: deviceId } });
+    if (!device) throw new NotFoundException('Device not found');
+    
+    // We can just ask rulesService to publish
+    await this.rulesService.triggerFan(deviceId, action, 'MANUAL', userName);
     return { success: true, action, deviceId };
   }
 

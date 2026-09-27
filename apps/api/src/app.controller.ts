@@ -45,6 +45,18 @@ export class AppController {
     return this.appService.sendPumpCommand(deviceId, action.toUpperCase(), duration || 30, userName || 'Víctor (Admin)');
   }
 
+  @Post('api/devices/:id/fan/:action')
+  async controlFan(
+    @Param('id') deviceId: string,
+    @Param('action') action: string,
+    @Body('userName') userName?: string
+  ) {
+    if (action !== 'on' && action !== 'off') {
+      throw new BadRequestException('Action must be "on" or "off"');
+    }
+    return this.appService.sendFanCommand(deviceId, action.toUpperCase(), userName || 'Víctor (Admin)');
+  }
+
   @Get('api/devices/:id/rules')
   async getDeviceRule(@Param('id') deviceId: string) {
     return this.appService.getDeviceRule(deviceId);

@@ -72,6 +72,7 @@ model Telemetry {
   soilMoistureRaw Int?     // YL-38 - Valor ADC crudo
   soilMoisturePct Float?   // Humedad de suelo calculada (0-100%)
   pumpOn          Boolean  // Estado de la bomba (encendida/apagada)
+  fanOn           Boolean  @default(false) // Estado del extractor/ventilador
   rssi            Int?     // Nivel de señal Wi-Fi
   payloadVersion  Int
 

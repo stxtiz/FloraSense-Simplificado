@@ -68,15 +68,15 @@ export function HistoryView() {
         
         <main className="flex-1 p-6 md:p-10 lg:p-14 max-w-[1000px] mx-auto w-full relative z-10">
           <header className="mb-10">
-            <h1 className="font-display text-5xl text-ink mb-2">Historial de Riego</h1>
-            <p className="text-ink-soft">Registro detallado de todos los ciclos de agua ejecutados.</p>
+            <h1 className="font-display text-5xl text-ink mb-2">Historial de Eventos</h1>
+            <p className="text-ink-soft">Registro detallado de los ciclos de riego y ventilación ejecutados en tu sistema.</p>
           </header>
 
           <div className="bg-canvas-elevated border border-line rounded-[32px] shadow-sm overflow-hidden">
             {loading ? (
               <div className="p-12 text-center text-ink-soft">Cargando registros...</div>
             ) : events.length === 0 ? (
-              <div className="p-12 text-center text-ink-soft">No hay registros de riego todavía.</div>
+              <div className="p-12 text-center text-ink-soft">No hay registros de eventos todavía.</div>
             ) : (
               <div className="w-full overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -101,13 +101,18 @@ export function HistoryView() {
                             <div className="text-sm text-ink-soft mt-1">{startDate.toLocaleTimeString()}</div>
                           </td>
                           <td className="p-6">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase ${
-                              evt.origin === 'AUTO_RULE' 
-                                ? 'bg-moss/10 text-moss' 
-                                : 'bg-water/10 text-water'
-                            }`}>
-                              {evt.origin === 'AUTO_RULE' ? 'Automático' : 'Manual'}
-                            </span>
+                            <div className="flex flex-col gap-2">
+                              <span className={`px-3 py-1 rounded-full text-xs font-bold tracking-wider uppercase self-start w-fit ${
+                                evt.origin === 'AUTO_RULE' 
+                                  ? 'bg-moss/10 text-moss' 
+                                  : 'bg-water/10 text-water'
+                              }`}>
+                                {evt.origin === 'AUTO_RULE' ? 'Automático' : 'Manual'}
+                              </span>
+                              <span className="text-[10px] text-ink-soft font-bold uppercase tracking-widest mt-1 block">
+                                {evt.triggeredBy?.includes('(Ventilador)') ? 'VENTILACIÓN' : 'RIEGO'}
+                              </span>
+                            </div>
                           </td>
                           <td className="p-6">
                             <div className="text-sm font-medium text-ink">

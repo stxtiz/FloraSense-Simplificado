@@ -11,6 +11,7 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   }
 
   const response = await fetch(`http://localhost:3001${endpoint}`, {
+    cache: 'no-store',
     ...options,
     headers,
   });
