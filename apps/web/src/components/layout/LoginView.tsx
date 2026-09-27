@@ -3,6 +3,9 @@
 import React, { useState } from 'react';
 import { TopographicPattern } from '../ui/TopographicPattern';
 import { Droplets, ArrowRight, Lock } from 'lucide-react';
+const safeGetItem = (k: string) => { try { return typeof window !== 'undefined' ? window.localStorage.getItem(k) : null; } catch(e) { return null; } };
+const safeSetItem = (k: string, v: string) => { try { if (typeof window !== 'undefined') window.localStorage.setItem(k, v); } catch(e) {} };
+
 
 export function LoginView({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('');
@@ -17,7 +20,7 @@ export function LoginView({ onLogin }: { onLogin: () => void }) {
     setLoading(true);
 
     try {
-      const res = await fetch('http://localhost:3001/api/auth/login', {
+      const res = await fetch(`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
@@ -28,8 +31,8 @@ export function LoginView({ onLogin }: { onLogin: () => void }) {
       }
 
       const data = await res.json();
-      localStorage.setItem('fs_jwt_token', data.access_token);
-      localStorage.setItem('fs_auth_token', 'true');
+      safeSetItem('fs_jwt_token', data.access_token);
+      safeSetItem('fs_auth_token', 'true');
       onLogin();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al iniciar sesión');

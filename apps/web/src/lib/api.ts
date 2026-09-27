@@ -1,5 +1,11 @@
+const safeGetItem = (k: string) => { try { return typeof window !== 'undefined' ? window.localStorage.getItem(k) : null; } catch(e) { return null; } };
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('fs_jwt_token') : null;
+  let token = null;
+  try {
+    if (typeof window !== 'undefined') {
+      token = safeGetItem('fs_jwt_token');
+    }
+  } catch(e) {}
   
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
@@ -10,18 +16,14 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`http://localhost:3001${endpoint}`, {
+  const response = await fetch(`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001${endpoint}`, {
     cache: 'no-store',
     ...options,
     headers,
   });
 
   if (response.status === 401) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('fs_jwt_token');
-      localStorage.removeItem('fs_auth_token');
-      window.location.reload();
-    }
+    if (typeof window !== 'undefined') { try { window.localStorage.removeItem('fs_jwt_token'); window.localStorage.removeItem('fs_auth_token'); } catch(e){} window.location.reload(); }
     throw new Error('No autorizado. Sesión expirada.');
   }
 

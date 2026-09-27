@@ -14,6 +14,9 @@ import { TopographicPattern } from '../ui/TopographicPattern';
 import { HistoryChart } from '../charts/HistoryChart';
 import { AirHistoryChart } from '../charts/AirHistoryChart';
 import { LoginView } from './LoginView';
+const safeGetItem = (k: string) => { try { return typeof window !== 'undefined' ? window.localStorage.getItem(k) : null; } catch(e) { return null; } };
+const safeSetItem = (k: string, v: string) => { try { if (typeof window !== 'undefined') window.localStorage.setItem(k, v); } catch(e) {} };
+
 
 type DeviceData = {
   id: string;
@@ -41,12 +44,12 @@ export function DashboardView() {
 
   // Check auth on mount
   useEffect(() => {
-    const isAuth = localStorage.getItem('fs_auth_token') === 'true';
+    const isAuth = safeGetItem('fs_auth_token') === 'true';
     setIsAuthenticated(isAuth);
   }, []);
 
   const handleLogin = () => {
-    localStorage.setItem('fs_auth_token', 'true');
+    safeSetItem('fs_auth_token', 'true');
     setIsAuthenticated(true);
   };
 

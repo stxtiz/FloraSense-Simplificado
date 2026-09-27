@@ -7,6 +7,9 @@ import { Sidebar } from './Sidebar';
 import { LoginView } from './LoginView';
 import { TopographicPattern } from '../ui/TopographicPattern';
 import { Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+const safeGetItem = (k: string) => { try { return typeof window !== 'undefined' ? window.localStorage.getItem(k) : null; } catch(e) { return null; } };
+const safeSetItem = (k: string, v: string) => { try { if (typeof window !== 'undefined') window.localStorage.setItem(k, v); } catch(e) {} };
+
 
 type IrrigationEvent = {
   id: string;
@@ -24,7 +27,7 @@ export function HistoryView() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const isAuth = localStorage.getItem('fs_auth_token') === 'true';
+    const isAuth = safeGetItem('fs_auth_token') === 'true';
     setIsAuthenticated(isAuth);
   }, []);
 
