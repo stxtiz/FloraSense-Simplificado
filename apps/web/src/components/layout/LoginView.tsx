@@ -10,6 +10,15 @@ const safeSetItem = (k: string, v: string) => { try { if (typeof window !== 'und
 export function LoginView({ onLogin }: { onLogin: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+
+  React.useEffect(() => {
+    const saved = safeGetItem('fs_remember_email');
+    if (saved) {
+      setEmail(saved);
+      setRememberMe(true);
+    }
+  }, []);
 
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -33,6 +42,11 @@ export function LoginView({ onLogin }: { onLogin: () => void }) {
       const data = await res.json();
       safeSetItem('fs_jwt_token', data.access_token);
       safeSetItem('fs_auth_token', 'true');
+      if (rememberMe) {
+        safeSetItem('fs_remember_email', email);
+      } else {
+        try { window.localStorage.removeItem('fs_remember_email'); } catch(e){}
+      }
       onLogin();
     } catch (err: any) {
       setErrorMsg(err.message || 'Error al iniciar sesión');
@@ -121,10 +135,29 @@ export function LoginView({ onLogin }: { onLogin: () => void }) {
                 />
                 <Lock className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-line-strong" />
               </div>
+            
+            </div>
+            
+            <div className="flex items-center justify-between text-sm">
+              <label className="flex items-center gap-2 cursor-pointer text-ink-soft hover:text-ink transition-colors">
+                <input 
+                  type="checkbox" 
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="accent-moss-bright w-4 h-4 rounded border-line"
+                />
+                Recordar usuario
+              </label>
+              <button 
+                type="button" 
+                onClick={() => alert("Por seguridad, el restablecimiento de contraseña debe solicitarse al administrador del sistema local.")} 
+                className="text-moss hover:text-moss-bright transition-colors font-medium"
+              >
+                ¿Olvidaste tu contraseña?
+              </button>
             </div>
 
             <button 
-              type="submit" 
               disabled={loading}
               className="w-full mt-8 bg-ink text-canvas py-4 px-6 flex items-center justify-between hover:bg-ink-soft transition-colors group disabled:opacity-50"
             >
