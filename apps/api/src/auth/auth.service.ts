@@ -27,6 +27,12 @@ export class AuthService {
     };
   }
 
+  async verifyPassword(userId: string, pass: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return false;
+    return bcrypt.compare(pass, user.passwordHash);
+  }
+
   async changePassword(userId: string, currentPass: string, newPass: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Usuario no encontrado');

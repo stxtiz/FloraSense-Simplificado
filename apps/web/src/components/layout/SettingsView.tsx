@@ -6,6 +6,10 @@ import { Sidebar } from './Sidebar';
 import { LoginView } from './LoginView';
 import { TopographicPattern } from '../ui/TopographicPattern';
 import { Smartphone, Wifi, Shield, RefreshCw, X, CheckCircle, AlertTriangle } from 'lucide-react';
+import Swal from 'sweetalert2';
+import withReactContent from 'sweetalert2-react-content';
+
+const MySwal = withReactContent(Swal);
 
 export function SettingsView() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -67,18 +71,70 @@ export function SettingsView() {
   };
 
   
-  const handleDeleteDevice = async (id: string) => {
-    if (!confirm('¿Seguro que quieres eliminar este dispositivo permanentemente?')) return;
-    try {
-      await apiFetch('/api/devices/' + id, { method: 'DELETE' });
-      if (activeDeviceId === id) {
-        localStorage.removeItem('fs_active_device');
-        setActiveDeviceId(null);
+  const handleDeleteDevice = async (id: string, name: string) => {
+    MySwal.fire({
+      title: '¿Estás seguro?',
+      text: `¿Estás seguro que deseas eliminar este dispositivo ("${name}")?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: 'var(--color-warning)',
+      cancelButtonColor: 'var(--color-ink-soft)',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      background: 'var(--color-canvas)',
+      color: 'var(--color-ink)'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        MySwal.fire({
+          title: 'Confirmar Identidad',
+          input: 'password',
+          inputPlaceholder: 'Ingresa tu contraseña',
+          inputAttributes: {
+            autocapitalize: 'off',
+            autocorrect: 'off'
+          },
+          showCancelButton: true,
+          confirmButtonText: 'Eliminar permanentemente',
+          cancelButtonText: 'Cancelar',
+          showLoaderOnConfirm: true,
+          confirmButtonColor: 'var(--color-warning)',
+          background: 'var(--color-canvas)',
+          color: 'var(--color-ink)',
+          preConfirm: async (password) => {
+            try {
+              const res = await apiFetch('/api/auth/verify', {
+                method: 'POST',
+                body: JSON.stringify({ password })
+              });
+              if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.message || 'Contraseña incorrecta');
+              }
+              await apiFetch('/api/devices/' + id, { method: 'DELETE' });
+            } catch (error) {
+              MySwal.showValidationMessage(error.message);
+            }
+          },
+          allowOutsideClick: () => !MySwal.isLoading()
+        }).then((res2) => {
+          if (res2.isConfirmed) {
+            if (activeDeviceId === id) {
+              localStorage.removeItem('fs_active_device');
+              setActiveDeviceId(null);
+            }
+            loadDevices();
+            MySwal.fire({
+              title: 'Eliminado',
+              text: 'El dispositivo ha sido eliminado exitosamente.',
+              icon: 'success',
+              background: 'var(--color-canvas)',
+              color: 'var(--color-ink)',
+              confirmButtonColor: 'var(--color-moss)'
+            });
+          }
+        });
       }
-      loadDevices();
-    } catch (e) {
-      console.error('Error al eliminar:', e);
-    }
+    });
   };
 
   const handleSelectActive = (id: string) => {
@@ -183,7 +239,7 @@ export function SettingsView() {
                           {activeDeviceId !== d.id && (
                             <button onClick={() => handleSelectActive(d.id)} className="text-xs text-water font-bold uppercase tracking-wider hover:underline">Seleccionar</button>
                           )}
-                          <button onClick={() => handleDeleteDevice(d.id)} className="text-xs text-warning font-bold uppercase tracking-wider hover:underline">Eliminar</button>
+                          <button onClick={() => handleDeleteDevice(d.id, d.name)} className="text-xs text-warning font-bold uppercase tracking-wider hover:underline">Eliminar</button>
                         </div>
                       </div>
                     ))}

@@ -16,6 +16,14 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Post('verify')
+  async verifyPassword(@Request() req: any, @Body() body: any) {
+    const isValid = await this.authService.verifyPassword(req.user.userId, body.password);
+    if (!isValid) throw new UnauthorizedException('Contraseña incorrecta');
+    return { success: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Put('password')
   async changePassword(@Request() req: any, @Body() body: any) {
     return this.authService.changePassword(req.user.userId, body.currentPassword, body.newPassword);
