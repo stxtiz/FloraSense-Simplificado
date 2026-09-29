@@ -1,0 +1,36 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Device {
+  id              String      @id @default(uuid())
+  deviceKey       String      @unique
+  name            String
+  status          String      @default("ONLINE")
+  pumpOn          Boolean     @default(false)
+  lastSeenAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  telemetries     Telemetry[]
+}
+
+model Telemetry {
+  id              Int      @id @default(autoincrement())
+  deviceId        String
+  recordedAt      DateTime @default(now())
+  temperatureC    Float?
+  airHumidityPct  Float?
+  soilMoistureRaw Int?
+  soilMoisturePct Float?
+  pumpOn          Boolean
+  
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  
+  @@index([deviceId, recordedAt(sort: Desc)])
+}
