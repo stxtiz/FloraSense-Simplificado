@@ -16,7 +16,7 @@ export async function apiFetch(endpoint: string, options: RequestInit = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const response = await fetch(`http://${typeof window !== 'undefined' ? window.location.hostname : 'localhost'}:3001${endpoint}`, {
+  const response = await fetch(endpoint, {
     cache: 'no-store',
     ...options,
     headers,
