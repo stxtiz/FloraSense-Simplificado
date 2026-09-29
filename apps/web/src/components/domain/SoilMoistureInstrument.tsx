@@ -1,8 +1,9 @@
 import React from 'react';
 
-export function SoilMoistureInstrument({ valuePct, status }: { valuePct: number, status: 'SECO' | 'OPTIMO' | 'SATURADO' | 'OFFLINE' }) {
+export function SoilMoistureInstrument({ valuePct, status }: { valuePct: number | null, status: 'SECO' | 'OPTIMO' | 'SATURADO' | 'OFFLINE' }) {
+  const safePct = valuePct || 0;
   // Posición del marcador (0 a 100%)
-  const leftPos = Math.max(0, Math.min(100, valuePct));
+  const leftPos = Math.max(0, Math.min(100, safePct));
   
   let trackColor = 'bg-line-strong';
   let dotColor = 'bg-ink';
@@ -35,7 +36,7 @@ export function SoilMoistureInstrument({ valuePct, status }: { valuePct: number,
         className="mt-4 text-center transition-all duration-700 ease-out"
         style={{ paddingLeft: `calc(${leftPos}% - 24px)`, width: '48px' }}
       >
-        <span className="text-xl font-medium tracking-tight text-ink">{valuePct.toFixed(1)}<span className="text-sm text-ink-soft ml-0.5">%</span></span>
+        <span className="text-xl font-medium tracking-tight text-ink">{safePct.toFixed(1)}<span className="text-sm text-ink-soft ml-0.5">%</span></span>
       </div>
     </div>
   );

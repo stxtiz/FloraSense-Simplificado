@@ -1,4 +1,4 @@
-﻿version: '3.8'
+version: '3.8'
 
 services:
   postgres:
@@ -32,11 +32,9 @@ services:
     working_dir: /app
     volumes:
       - .:/app
-    # Evita que se cierre si no hay package.json aÃºn y nos permite ejecutar comandos
     command: sh -c "if [ -f apps/api/package.json ]; then npm run start:dev -w apps/api; else sleep infinity; fi"
     ports:
       - "3001:3001"
-      - "5555:5555"
     depends_on:
       - postgres
       - mosquitto
@@ -44,6 +42,20 @@ services:
       - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/smart_irrigation?schema=public
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
       - PORT=3001
+
+  prisma_studio:
+    image: node:20-alpine
+    container_name: smart_irrigation_studio
+    working_dir: /app/apps/api
+    volumes:
+      - .:/app
+    command: npx prisma studio
+    ports:
+      - "5555:5555"
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/smart_irrigation?schema=public
 
   web:
     image: node:20-alpine

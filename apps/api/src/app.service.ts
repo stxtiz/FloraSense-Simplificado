@@ -24,6 +24,10 @@ export class AppService {
     });
   }
 
+  async deleteDevice(id: string) {
+    return this.prisma.device.delete({ where: { id } });
+  }
+
   async createDevice(name: string) {
     const crypto = await import('crypto');
     const id = crypto.randomUUID();
@@ -43,10 +47,10 @@ export class AppService {
     };
   }
 
-  async getDemoDevice(): Promise<any> {
-    const device = await this.prisma.device.findFirst({
-      orderBy: { lastSeenAt: 'desc' }
-    });
+  async getDemoDevice(requestedId?: string): Promise<any> {
+    const device = requestedId 
+      ? await this.prisma.device.findUnique({ where: { id: requestedId } })
+      : await this.prisma.device.findFirst({ orderBy: { lastSeenAt: 'desc' } });
 
     if (!device) return null;
 

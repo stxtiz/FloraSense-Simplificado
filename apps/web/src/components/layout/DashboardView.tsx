@@ -56,7 +56,11 @@ export function DashboardView() {
   const fetchDevice = async () => {
     if (!isAuthenticated) return;
     try {
-      const res = await apiFetch('/api/devices/demo?_t=' + Date.now());
+      const activeId = typeof window !== 'undefined' ? window.localStorage.getItem('fs_active_device') : null;
+      const url = activeId 
+        ? `/api/devices/demo?id=${activeId}&_t=${Date.now()}`
+        : `/api/devices/demo?_t=${Date.now()}`;
+      const res = await apiFetch(url);
       if (res.ok) {
         const json = await res.json();
         setData(json);

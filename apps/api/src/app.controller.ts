@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Param, Body, BadRequestException, UseGuards } from '@nestjs/common';
+import { Delete, Query, Controller, Get, Post, Put, Param, Body, BadRequestException, UseGuards } from '@nestjs/common';
 import { AppService } from './app.service.js';
 import { JwtAuthGuard } from './auth/jwt-auth.guard.js';
 
@@ -17,6 +17,11 @@ export class AppController {
     return this.appService.getAllDevices();
   }
 
+  @Delete('api/devices/:id')
+  async deleteDevice(@Param('id') id: string) {
+    return this.appService.deleteDevice(id);
+  }
+
   @Post('api/devices')
   async createDevice(@Body('name') name: string) {
     return this.appService.createDevice(name);
@@ -28,8 +33,8 @@ export class AppController {
   }
 
   @Get('api/devices/demo')
-  async getDemoDevice(): Promise<any> {
-    return this.appService.getDemoDevice();
+  async getDemoDevice(@Query('id') id?: string): Promise<any> {
+    return this.appService.getDemoDevice(id);
   }
 
   @Post('api/devices/:id/pump/:action')

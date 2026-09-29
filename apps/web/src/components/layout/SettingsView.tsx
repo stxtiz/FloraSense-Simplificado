@@ -16,6 +16,7 @@ export function SettingsView() {
   const [newDeviceName, setNewDeviceName] = useState('');
   const [newDeviceKey, setNewDeviceKey] = useState<string | null>(null);
   const [newDeviceId, setNewDeviceId] = useState<string | null>(null);
+  const [activeDeviceId, setActiveDeviceId] = useState<string | null>(null);
 
   // MQTT state
   const [mqttStatus, setMqttStatus] = useState<any>(null);
@@ -33,6 +34,9 @@ export function SettingsView() {
   useEffect(() => {
     const isAuth = localStorage.getItem('fs_auth_token') === 'true';
     setIsAuthenticated(isAuth);
+    if (typeof window !== 'undefined') {
+      setActiveDeviceId(localStorage.getItem('fs_active_device'));
+    }
     if (isAuth) {
       loadDevices();
       pingMqtt();
@@ -60,6 +64,26 @@ export function SettingsView() {
     } finally {
       setPinging(false);
     }
+  };
+
+  
+  const handleDeleteDevice = async (id: string) => {
+    if (!confirm('¿Seguro que quieres eliminar este dispositivo permanentemente?')) return;
+    try {
+      await apiFetch('/api/devices/' + id, { method: 'DELETE' });
+      if (activeDeviceId === id) {
+        localStorage.removeItem('fs_active_device');
+        setActiveDeviceId(null);
+      }
+      loadDevices();
+    } catch (e) {
+      console.error('Error al eliminar:', e);
+    }
+  };
+
+  const handleSelectActive = (id: string) => {
+    localStorage.setItem('fs_active_device', id);
+    setActiveDeviceId(id);
   };
 
   const handleAddDevice = async () => {
@@ -147,11 +171,20 @@ export function SettingsView() {
                   <div className="mb-4 bg-canvas p-4 rounded-xl border border-line text-sm">
                     {devices.map(d => (
                       <div key={d.id} className="flex justify-between items-center py-2 border-b border-line last:border-0 last:pb-0">
-                        <div>
+                        <div className="flex items-center gap-2">
                           <span className="font-bold text-ink">{d.name}</span>
-                          <span className="text-ink-soft text-xs ml-2">({d.status})</span>
+                          <span className="text-ink-soft text-xs">({d.status})</span>
+                          {activeDeviceId === d.id && (
+                            <span className="bg-moss/20 text-moss text-[10px] px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Activo</span>
+                          )}
                         </div>
-                        <div className="font-mono-data text-xs text-ink-soft">ID: {d.id.split('-')[0]}...</div>
+                        <div className="flex items-center gap-4">
+                          <div className="font-mono-data text-xs text-ink-soft hidden sm:block">ID: {d.id.split('-')[0]}...</div>
+                          {activeDeviceId !== d.id && (
+                            <button onClick={() => handleSelectActive(d.id)} className="text-xs text-water font-bold uppercase tracking-wider hover:underline">Seleccionar</button>
+                          )}
+                          <button onClick={() => handleDeleteDevice(d.id)} className="text-xs text-warning font-bold uppercase tracking-wider hover:underline">Eliminar</button>
+                        </div>
                       </div>
                     ))}
                   </div>
