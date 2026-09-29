@@ -33,7 +33,9 @@ export function HistoryView() {
 
   const fetchEvents = async () => {
     try {
-      const res = await apiFetch('/api/devices/demo');
+      const activeId = typeof window !== 'undefined' ? window.localStorage.getItem('fs_active_device') : null;
+      const url = activeId ? `/api/devices/demo?id=${activeId}` : '/api/devices/demo';
+      const res = await apiFetch(url);
       if (res.ok) {
         const json = await res.json();
         const deviceId = json.id;
