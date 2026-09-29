@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FloraSense Web Dashboard (Versión Simplificada)
 
-## Getting Started
+Esta es la aplicación web para **FloraSense**, construida con [Next.js](https://nextjs.org) (App Router), TailwindCSS, Recharts y **Prisma** como ORM para conexión a MySQL.
 
-First, run the development server:
+## Responsabilidades
+En esta arquitectura simplificada, esta aplicación se encarga de:
+1. **Frontend:** Mostrar el dashboard reactivo y los gráficos históricos a través de componentes React.
+2. **Backend (API Routes):** Exponer los endpoints REST (`/api/telemetry` y `/api/commands`) que recibe las peticiones HTTP directamente desde el microcontrolador (ESP8266).
+3. **Base de Datos:** Definir el esquema de MySQL con `Prisma` y gestionar las consultas de lectura/escritura (telemetría y comandos de bomba).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Inicio Rápido (Local)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Si estás usando Docker (recomendado en la raíz del proyecto), no necesitas ejecutar esto localmente. Si deseas correrlo sin Docker:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Asegúrate de tener una base de datos MySQL corriendo y configura tu `.env.local`:
+   ```bash
+   DATABASE_URL="mysql://usuario:password@localhost:3306/florasense"
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Instala las dependencias y genera el cliente de Prisma:
+   ```bash
+   npm install
+   npx prisma generate
+   npx prisma db push
+   ```
 
-## Learn More
+3. Inicia el servidor de desarrollo:
+   ```bash
+   npm run dev
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+Abre [http://localhost:3000](http://localhost:3000) en tu navegador para ver el dashboard.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Estructura de Endpoints de Hardware
+El firmware ESP8266 se comunica con las siguientes rutas en Next.js:
+- `POST /api/telemetry`: Para enviar la lectura de los sensores. Responde con el estado actual requerido de la bomba (`{ "pumpOn": true/false }`).
+- `POST /api/devices/[id]/pump/[action]`: Utilizado por el panel de administración web para alternar manualmente el encendido o apagado de la bomba de agua.
